@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import avatarImg from '../assets/avatar.jpg';
 
 interface GraphicProps {
   theme: 'light' | 'dark';
@@ -7,6 +8,7 @@ interface GraphicProps {
 export default function InteractiveGraphics({ theme }: GraphicProps) {
   const [time, setTime] = useState('');
   const [cpu, setCpu] = useState(12);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     // Live clock for smartphone preview
@@ -43,12 +45,20 @@ export default function InteractiveGraphics({ theme }: GraphicProps) {
             : 'bg-white border-neutral-300 shadow-neutral-200'
         }`}>
           {/* User Avatar Image */}
-          <img 
-            src="/avatar.jpg" 
-            alt="xgurusx avatar" 
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover object-top transition-transform duration-500 hover:scale-105"
-          />
+          {!imgError ? (
+            <img 
+              src={avatarImg} 
+              alt="xgurusx avatar" 
+              referrerPolicy="no-referrer"
+              onError={() => setImgError(true)}
+              className="w-full h-full object-cover object-top transition-transform duration-500 hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full bg-neutral-900 flex flex-col items-center justify-center font-mono">
+              <span className="text-2xl font-black text-emerald-400 tracking-wider">XG</span>
+              <span className="text-[9px] text-neutral-500 uppercase tracking-widest mt-0.5">DEV</span>
+            </div>
+          )}
 
           {/* Subtle spinning technical ring overlay */}
           <svg className="absolute inset-0 w-full h-full animate-spin [animation-duration:30s] pointer-events-none opacity-40 text-white z-10" viewBox="0 0 100 100">

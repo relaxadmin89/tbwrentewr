@@ -16,6 +16,51 @@ interface LogLine {
   timestamp: string;
 }
 
+// Helper for smart offline responses when backend API is unavailable (e.g., Netlify static deployment)
+function getOfflineResponse(userMsg: string, lang: 'ru' | 'en'): string {
+  const msg = userMsg.toLowerCase().trim();
+  
+  if (msg.includes("привет") || msg.includes("здравств") || msg.includes("hello") || msg.includes("hi") || msg.includes("hey") || msg.includes("йоу") || msg.includes("ку") || msg.includes("салам")) {
+    return lang === 'ru'
+      ? `Привет! Я Помощник Gu. 😊 Рад общению!\n\nЯ знаю всё о Даниле (xgurusx, 24 года, Москва), его навыках, проектах и контактах. Что вас интересует?`
+      : `Hello! I'm Gu Assistant. 😊 Glad to chat!\n\nI know everything about Danil (xgurusx, 24, Moscow), his skills, projects, and contacts. What would you like to know?`;
+  }
+  
+  if (msg.includes("навык") || msg.includes("стек") || msg.includes("технолог") || msg.includes("умеешь") || msg.includes("skills") || msg.includes("stack") || msg.includes("tech")) {
+    return lang === 'ru'
+      ? `Данил (xgurusx, 24 года, Москва) — Full Stack разработчик и дизайнер!\n\n• Фронтенд: React, TypeScript, Tailwind CSS, Motion, Vite\n• Бэкенд & Системы: Node.js, Express, C#, C++, Docker, PostgreSQL\n• Дизайн: Минимализм, анимации, удобный UI/UX`
+      : `Danil (xgurusx, 24, Moscow) is a Full Stack Developer & Designer!\n\n• Frontend: React, TypeScript, Tailwind CSS, Motion, Vite\n• Backend & Systems: Node.js, Express, C#, C++, Docker, PostgreSQL\n• Design: Clean minimalism, smooth interactions, refined UI/UX`;
+  }
+  
+  if (msg.includes("проект") || msg.includes("работы") || msg.includes("кейсы") || msg.includes("portfolio") || msg.includes("projects") || msg.includes("works")) {
+    return lang === 'ru'
+      ? `Ключевые проекты Данила:\n\n1. ◉ Интернет-магазин с каталогом и быстрой анимированной корзиной\n2. ◇ Персональный сайт-портфолио с консолью и интерактивными мини-играми\n3. ❖ Органайзер задач на каждый день\n\nБольше кейсов в Telegram-канале: t.me/portfolio_nafingexe`
+      : `Danil's key projects:\n\n1. ◉ E-commerce shop with smooth catalog & animated cart\n2. ◇ Portfolio website with terminal & arcade mini-games\n3. ❖ Daily minimalist task planner\n\nMore projects in Telegram channel: t.me/portfolio_nafingexe`;
+  }
+  
+  if (msg.includes("телеграм") || msg.includes("телега") || msg.includes("канал") || msg.includes("telegram") || msg.includes("tg") || msg.includes("t.me")) {
+    return lang === 'ru'
+      ? `Официальный Telegram-канал Данила:\n📢 t.me/portfolio_nafingexe\n\nЛичный контакт в Telegram: @xgurusx`
+      : `Danil's Official Telegram channel:\n📢 t.me/portfolio_nafingexe\n\nPersonal Telegram contact: @xgurusx`;
+  }
+  
+  if (msg.includes("контакт") || msg.includes("написать") || msg.includes("связь") || msg.includes("почта") || msg.includes("contact") || msg.includes("email") || msg.includes("mail")) {
+    return lang === 'ru'
+      ? `Связаться с Данилом:\n• Telegram: @xgurusx\n• Email: hsosat45@gmail.com\n• VK: vk.ru/xgurusx\n• Telegram-канал: t.me/portfolio_nafingexe`
+      : `Contact Danil:\n• Telegram: @xgurusx\n• Email: hsosat45@gmail.com\n• VK: vk.ru/xgurusx\n• Telegram Channel: t.me/portfolio_nafingexe`;
+  }
+
+  if (msg.includes("кто ты") || msg.includes("что ты") || msg.includes("помощник") || msg.includes("assistant") || msg.includes("gu")) {
+    return lang === 'ru'
+      ? `Я Помощник Gu — виртуальный ассистент xgurusx (Данила). Живу в его терминале и помогаю гостям узнать подробности о его навыках, проектах и контактах.`
+      : `I'm Gu Assistant — virtual assistant for xgurusx (Danil). I live in his terminal to help guests learn about his skills, projects, and contacts.`;
+  }
+
+  return lang === 'ru'
+    ? `Я Помощник Gu! Готов ответить на любой вопрос про Данила (xgurusx):\n• Его навыки и стек технологий\n• Проекты и кейсы\n• Telegram-канал (t.me/portfolio_nafingexe)\n• Прямые контакты для связи (@xgurusx)`
+    : `I'm Gu Assistant! Feel free to ask anything about Danil (xgurusx):\n• His tech stack & skills\n• Projects & case studies\n• Telegram channel (t.me/portfolio_nafingexe)\n• Direct contacts (@xgurusx)`;
+}
+
 export default function Terminal({ lang, onExecuteCommand, onReboot, theme }: TerminalProps) {
   const t = translations[lang];
   const [input, setInput] = useState('');
@@ -129,14 +174,20 @@ export default function Terminal({ lang, onExecuteCommand, onReboot, theme }: Te
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ message: trimmed, history: chatHistory }),
             });
+            if (!res.ok) {
+              throw new Error(`HTTP error! status: ${res.status}`);
+            }
             const data = await res.json();
-            const reply = data.text || (lang === 'ru' ? "Извините, не удалось получить ответ." : "Sorry, failed to get a response.");
+            const reply = data.text || getOfflineResponse(trimmed, lang);
             
-            // Append the real AI reply, replacing the loading message
+            // Append the AI reply
             setLogs([...newLogs, { text: `Gu: ${reply}`, type: 'output', timestamp }]);
             setChatHistory(prev => [...prev, { role: 'user', text: trimmed }, { role: 'assistant', text: reply }]);
           } catch (err) {
-            setLogs([...newLogs, { text: lang === 'ru' ? 'Ошибка связи с Помощником Gu.' : 'Error communicating with Gu Assistant.', type: 'error', timestamp }]);
+            // Smart client-side fallback for static deployments (e.g. Netlify) or network hiccups
+            const reply = getOfflineResponse(trimmed, lang);
+            setLogs([...newLogs, { text: `Gu: ${reply}`, type: 'output', timestamp }]);
+            setChatHistory(prev => [...prev, { role: 'user', text: trimmed }, { role: 'assistant', text: reply }]);
           } finally {
             setIsPending(false);
           }
