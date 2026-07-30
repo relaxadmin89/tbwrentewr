@@ -1,0 +1,8 @@
+{
+  "name": "xgurusx Portfolio",
+  "description": "A high-performance, responsive developer portfolio featuring a relaxed black-and-white minimalist design, bilingual Russian/English translations, bento grids, and an interactive terminal console.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
