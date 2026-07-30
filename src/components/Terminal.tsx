@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { translations, projectsList, skillsList, servicesList } from '../data';
 import { Terminal as TerminalIcon, CornerDownLeft, Play, RefreshCw, Sparkles, TerminalSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleGenAI } from '@google/genai';
 
 interface TerminalProps {
   lang: 'en' | 'ru';
@@ -24,6 +25,12 @@ function getOfflineResponse(userMsg: string, lang: 'ru' | 'en'): string {
     return lang === 'ru'
       ? `Привет! Я Помощник Gu. 😊 Рад общению!\n\nЯ знаю всё о Даниле (xgurusx, 24 года, Москва), его навыках, проектах и контактах. Что вас интересует?`
       : `Hello! I'm Gu Assistant. 😊 Glad to chat!\n\nI know everything about Danil (xgurusx, 24, Moscow), his skills, projects, and contacts. What would you like to know?`;
+  }
+
+  if (msg.includes("лет") || msg.includes("возраст") || msg.includes("где") || msg.includes("город") || msg.includes("москв") || msg.includes("age") || msg.includes("location") || msg.includes("moscow")) {
+    return lang === 'ru'
+      ? `Данилу (xgurusx) 24 года, он проживает и работает в Москве!`
+      : `Danil (xgurusx) is 24 years old, based in Moscow, Russia.`;
   }
   
   if (msg.includes("навык") || msg.includes("стек") || msg.includes("технолог") || msg.includes("умеешь") || msg.includes("skills") || msg.includes("stack") || msg.includes("tech")) {
@@ -50,6 +57,12 @@ function getOfflineResponse(userMsg: string, lang: 'ru' | 'en'): string {
       : `Contact Danil:\n• Telegram: @xgurusx\n• Email: hsosat45@gmail.com\n• VK: vk.ru/xgurusx\n• Telegram Channel: t.me/portfolio_nafingexe`;
   }
 
+  if (msg.includes("работа") || msg.includes("заказ") || msg.includes("фриланс") || msg.includes("сотрудничеств") || msg.includes("hire") || msg.includes("freelance") || msg.includes("job")) {
+    return lang === 'ru'
+      ? `Данил открыт к предложеням по фрилансу, проектированию и разработке приложений! Напишите ему в Telegram (@xgurusx) или на почту hsosat45@gmail.com`
+      : `Danil is open for freelance projects, application development & collaboration! Contact him on Telegram (@xgurusx) or via email hsosat45@gmail.com`;
+  }
+
   if (msg.includes("кто ты") || msg.includes("что ты") || msg.includes("помощник") || msg.includes("assistant") || msg.includes("gu")) {
     return lang === 'ru'
       ? `Я Помощник Gu — виртуальный ассистент xgurusx (Данила). Живу в его терминале и помогаю гостям узнать подробности о его навыках, проектах и контактах.`
@@ -57,8 +70,72 @@ function getOfflineResponse(userMsg: string, lang: 'ru' | 'en'): string {
   }
 
   return lang === 'ru'
-    ? `Я Помощник Gu! Готов ответить на любой вопрос про Данила (xgurusx):\n• Его навыки и стек технологий\n• Проекты и кейсы\n• Telegram-канал (t.me/portfolio_nafingexe)\n• Прямые контакты для связи (@xgurusx)`
-    : `I'm Gu Assistant! Feel free to ask anything about Danil (xgurusx):\n• His tech stack & skills\n• Projects & case studies\n• Telegram channel (t.me/portfolio_nafingexe)\n• Direct contacts (@xgurusx)`;
+    ? `Я Помощник Gu! Я с удовольствием расскажу вам о Даниле (xgurusx):\n• Навыки и стек (React, Node.js, C#, C++)\n• Выполненные проекты и портфолио\n• Telegram-канал (t.me/portfolio_nafingexe)\n• Прямой контакт для связи (@xgurusx)`
+    : `I'm Gu Assistant! I can tell you all about Danil (xgurusx):\n• Skills & stack (React, Node.js, C#, C++)\n• Featured projects & portfolio\n• Telegram channel (t.me/portfolio_nafingexe)\n• Direct contact (@xgurusx)`;
+}
+
+// Resilient AI response fetcher working across Cloud Run backend and Netlify static hosting
+async function fetchAiResponse(
+  message: string, 
+  history: { role: 'user' | 'assistant', text: string }[], 
+  lang: 'ru' | 'en'
+): Promise<string> {
+  // 1. Try server backend /api/chat
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, history }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.text) {
+        return data.text;
+      }
+    }
+  } catch (err) {
+    // Server endpoint not reachable on static hosts like Netlify
+  }
+
+  // 2. Client-side Gemini API execution if key exists
+  const clientKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
+                    (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY);
+
+  if (clientKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: clientKey });
+      const systemInstruction = lang === 'ru'
+        ? "Вы — 'Помощник Gu' (Gu Assistant), интеллектуальный и полезный ИИ-помощник xgurusx (разработчика Данила, 24 года, Москва). Отвечайте дружелюбно, лаконично, в уютном минималистичном стиле терминала. Вы общаетесь в портфолио xgurusx. У него есть отличные навыки (TypeScript, React, Node.js, C#, C++, Docker) и Телеграм-канал t.me/portfolio_nafingexe."
+        : "You are 'Gu Assistant', an AI assistant for xgurusx (developer Danil, 24, Moscow). Reply politely, concisely in terminal style. You know about his tech stack and Telegram channel t.me/portfolio_nafingexe.";
+
+      const contents = history.map(turn => ({
+        role: turn.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: turn.text }]
+      }));
+      contents.push({ role: 'user', parts: [{ text: message }] });
+
+      const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"];
+      for (const m of models) {
+        try {
+          const res = await ai.models.generateContent({
+            model: m,
+            contents,
+            config: { systemInstruction }
+          });
+          if (res && res.text) {
+            return res.text;
+          }
+        } catch (e) {
+          // try next model
+        }
+      }
+    } catch (clientErr) {
+      console.warn("[Gu AI] Client-side Gemini error:", clientErr);
+    }
+  }
+
+  // 3. Smart offline persona response (guaranteed answer without connection error)
+  return getOfflineResponse(message, lang);
 }
 
 export default function Terminal({ lang, onExecuteCommand, onReboot, theme }: TerminalProps) {
@@ -169,22 +246,12 @@ export default function Terminal({ lang, onExecuteCommand, onReboot, theme }: Te
           setLogs([...newLogs, { text: loadingText, type: 'system', timestamp }]);
 
           try {
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message: trimmed, history: chatHistory }),
-            });
-            if (!res.ok) {
-              throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            const data = await res.json();
-            const reply = data.text || getOfflineResponse(trimmed, lang);
+            const reply = await fetchAiResponse(trimmed, chatHistory, lang);
             
             // Append the AI reply
             setLogs([...newLogs, { text: `Gu: ${reply}`, type: 'output', timestamp }]);
             setChatHistory(prev => [...prev, { role: 'user', text: trimmed }, { role: 'assistant', text: reply }]);
           } catch (err) {
-            // Smart client-side fallback for static deployments (e.g. Netlify) or network hiccups
             const reply = getOfflineResponse(trimmed, lang);
             setLogs([...newLogs, { text: `Gu: ${reply}`, type: 'output', timestamp }]);
             setChatHistory(prev => [...prev, { role: 'user', text: trimmed }, { role: 'assistant', text: reply }]);

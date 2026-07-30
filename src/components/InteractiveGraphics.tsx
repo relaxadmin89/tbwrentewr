@@ -8,7 +8,16 @@ interface GraphicProps {
 export default function InteractiveGraphics({ theme }: GraphicProps) {
   const [time, setTime] = useState('');
   const [cpu, setCpu] = useState(12);
+  const [imgSrc, setImgSrc] = useState<string>(avatarImg);
   const [imgError, setImgError] = useState(false);
+
+  const handleImgError = () => {
+    if (imgSrc !== '/avatar.jpg') {
+      setImgSrc('/avatar.jpg');
+    } else {
+      setImgError(true);
+    }
+  };
 
   useEffect(() => {
     // Live clock for smartphone preview
@@ -47,10 +56,10 @@ export default function InteractiveGraphics({ theme }: GraphicProps) {
           {/* User Avatar Image */}
           {!imgError ? (
             <img 
-              src={avatarImg} 
+              src={imgSrc} 
               alt="xgurusx avatar" 
               referrerPolicy="no-referrer"
-              onError={() => setImgError(true)}
+              onError={handleImgError}
               className="w-full h-full object-cover object-top transition-transform duration-500 hover:scale-105"
             />
           ) : (
